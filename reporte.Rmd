@@ -1,0 +1,81 @@
+---
+title: "Practica Conducta Sexual"
+author: "Diego Ramírez González"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = F)
+library(tidyverse)
+library(here)
+library(broom)
+library(cowplot)
+library(ggsignif)
+library(knitr)
+```
+
+```{r cargar_datos}
+files <- list.files(path = here("data"), pattern = "txt")
+
+file_list <- lapply(files %>% set_names(files), 
+                    function(x) read_delim(file = here("data", x), delim = " ", col_names = T) %>% 
+                      pivot_longer(cols = c("E", "E+P"), 
+                                   names_to = "Grupo", 
+                                   values_to = str_replace(string = x, ".txt" , "") 
+                                   )
+                    )
+
+```
+
+```{r analisis}
+resultados <- lapply(file_list, 
+       function(x) t.test(x[,2][[1]] ~ x[,1][[1]]) %>% 
+         tidy()) %>% 
+      bind_rows(.id = "medida")
+
+resultados_mach_pcorr <- resultados[-1,] %>% 
+  mutate(p.value_bonf = p.adjust(p.value, method = "bonferroni"))
+
+resultados_pcorr <- resultados
+
+resultados_pcorr$p.value[-1] <- resultados_mach_pcorr$p.value_bonf
+
+titulo_y <- c("Coeficiente de Lordosis", "Latencia de Eyaculación", "Latencia de Intromisión",
+              "Latencia de Monta", "Número de Intromisiones", "Número de Montas")
+
+resultados_pcorr %>% transmute("Medición" = titulo_y,
+                               "E" = estimate1, 
+                               "E+P" = estimate2,
+                               "Puntaje T" = signif(statistic, digits = 3),
+                               "p" = signif(p.value, digits = 3)) %>% 
+  kable()
+                               
+
+```
+
+```{r graficas}
+lista_plots <- lapply(1:length(file_list) %>% set_names(names(file_list)), function(i){
+  z <- file_list[[i]]
+  ggplot(z, aes_string(y = colnames(z)[2], x = colnames(z)[1], color = colnames(z)[1])) +
+    # geom_violin() +
+    geom_boxplot(width = .25) +
+    geom_jitter(width = .05) +
+    geom_signif() +
+    ylab(titulo_y[i]) +
+    theme_classic() +
+    theme(axis.text.y = element_text(angle = 90, hjust = .5),
+          axis.title.x = element_blank(),
+          legend.position = "none")
+  }
+) 
+  
+plot_grid(lista_plots$latencia_eyaculacion.txt, 
+          lista_plots$latencia_intromision.txt, 
+          lista_plots$latencia_monta.txt, 
+          lista_plots$coeficiente_lordosis.txt, 
+          lista_plots$numero_intromisiones.txt,
+          lista_plots$numero_montas.txt, 
+          ncol = 3, nrow = 2)
+
+```
