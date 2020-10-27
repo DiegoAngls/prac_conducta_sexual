@@ -1,22 +1,42 @@
 ---
 title: "Practica Conducta Sexual"
-author: "Diego Ramírez González"
+author: "Diego Ramírez, Alejandra López, Deyanira Munguía, Rafael Sandoval, Diego Angeles"
 date: "`r Sys.Date()`"
 output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, message = F)
+
+list.of.packages <- c("tidyverse", "here", "broom", "cowplot", "ggsignif", "knitr")
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages)
+
 library(tidyverse)
 library(here)
 library(broom)
 library(cowplot)
 library(ggsignif)
 library(knitr)
+
+
+# Para que el output sea pdf necesitas latex instalado. Si no lo tienes, instala el paquete tinytex con install.packages("tinytex") cargalo con library(tinytex) y luego utiliza la función tinytex::install_tinytex()
 ```
 
 ```{r cargar_datos}
+
+# En la carpeta ./data tenemos archivos con terminación .txt que contienen los datos en bruto, cada uno nombrado de acuerdo a la variable que mide. 
+
+# Crea un vector con los nombres de los archivos con terminación .txt en la carpeta ./data
+
 files <- list.files(path = here("data"), pattern = "txt")
+
+
+# Itera sobre el vector con los nombres de los archivos (cada elemento del vector, los nombres de los archivos, tiene como nombre el nombre del archivo correspondiente. NOMBREINCEPTION), siendo estos el input para la función "read_", cargando cada archivo de texto (con columnas separadas por espacios) a un tibble (data frame) que estará dentro de una lista. 
+
+# Osea, los elementos de la lista son las bases de datos rectangulares de cada archivo. Asigna la lista a la variable file_list
+
+# Transforma estas bases rectangulares de formato ancho (donde cada columna es la medida conductal de un grupo) al formato largo (donde tenemos una columna de Grupo y otra para el valor de la medida conductual, cuyo nombre es el nombre del archivo correspondiente pero omitiendo la terminación .txt). 
 
 file_list <- lapply(files %>% set_names(files), 
                     function(x) read_delim(file = here("data", x), delim = " ", col_names = T) %>% 
@@ -28,21 +48,66 @@ file_list <- lapply(files %>% set_names(files),
 
 ```
 
+```{r, eval= F}
+# Este código es innecesario. Fue usado para crear la base de datos "limpia" que contiene una columna (todas unidas en una sola base de datos rectangular, en lugar de estar de forma separada como los archivos originales) por cada variable variable conductual y una columna de grupo.
+
+
+all_file_df <- lapply(file_list, function(x) x[,2]) %>% 
+  bind_cols %>%
+  add_column(file_list[[1]][,1])
+                            
+write_csv(all_file_df, path = here("data", "data_long_format.csv"), col_names = T)
+
+
+# Este código también es innecesario. Crea archivos .csv similares a los archivos .txt, pero con las columnas separadas por comas (comma separated values = csv)
+
+lapply(names(file_list), function(x) write_csv(file_list[[x]], 
+                                               path = here("data", 
+                                                           paste0(
+                                                             str_replace(x, ".txt", ""), 
+                                                             ".csv")
+                                                           ), 
+                                               col_names = T))
+
+# Todo este código no se corre al hacer knit, ya que está la opción de code chunk eval = F (evaluar igual a falso).
+```
+
+
 ```{r analisis}
+# Itera sobre cada tibble (data frame, base de datos rectangular) de la lista, haciendo una t de student con la columna de valores conductuales (la columna 2) en función del factor de grupo (la columna 1).
+
+# Limpia el output de la estadística inferencia con broom::tidy.
+
+# Acaba la iteración de la función de lapply, todos los outputs son tibbles de una sola fila, con la misma cantidad de columnas, cada una como un elemento separado de la lista. Junta estas filas con la función bind_rows, agrega una nueva columna llamada medida, que contiene los nombres de los elementos de la lista, que son los nombres de los archivos, dandonos una columna que nos diga a que variable le pertenece los resultados de la t de student de grupos independientes.
+
 resultados <- lapply(file_list, 
        function(x) t.test(x[,2][[1]] ~ x[,1][[1]]) %>% 
          tidy()) %>% 
       bind_rows(.id = "medida")
 
+# Para todas las filas menos la primera (que sé que contiene los datos de las hembras de coeficientes de lordosis por ver el output del código previo), agrega una columna (con la función mutate) de valores p con corrección de Bonferroni (Ingresando un vector de valores p, la columna de p.values brutos obtenidos de la t de student, a la función p.adjust. Asigna este vector a una columna llamada p.value_bonf).
+
+# La correción de Bonferroni consiste en multiplicar los valores p originales por el número de comparaciones hechas. Aquí son sólo las 5 comparaciones hechas en los machos, ya que no son comparaciones independientes por ser variables de los mismos grupos de machos. La comnparación de coeficiente de lordosis sí es independiente a las comparaciones que se hicieron de los machos.
+
+# Los resultados de los machos y su nueva columna de valores p corregidos se asignan a una nueva variable. La variable con los resultados de las hembras queda sin modificaciones.
+
 resultados_mach_pcorr <- resultados[-1,] %>% 
   mutate(p.value_bonf = p.adjust(p.value, method = "bonferroni"))
 
+# Copia la variable de resultados sin correción a otra
 resultados_pcorr <- resultados
 
+# Asgiana a la columna de valores p, menos a la primera fila que corresponde a la variable de las hembras, los resultados de p corregida de los machos
 resultados_pcorr$p.value[-1] <- resultados_mach_pcorr$p.value_bonf
+
+# Un vector de los nombres estéticos (en lugar de los nombres de los archivos originales en minusculas, sin espacios, etc), cuyo ordeb es el mismo   que los de la lista de datos en bruto y de el tibble con los resultados de la t de student.
 
 titulo_y <- c("Coeficiente de Lordosis", "Latencia de Eyaculación", "Latencia de Intromisión",
               "Latencia de Monta", "Número de Intromisiones", "Número de Montas")
+
+# Selecciona las columnas y modifica sus valores al mismo con la función transmute() del tibble con los resultados de la t de student de las hembras y machos (estos últimos con sus valores p corregidos). La variable E es el promedio (estimate1) de la variable conductual para el grupo E, meintras que la E+P lo es para ese grupo. La variable de Puntaje T es el t score con 3 cifras significativas, al igual que lo es para la variable p. 
+
+# Manda esa tibble resultante del transmute a la función kable(), para crear una table bonita.
 
 resultados_pcorr %>% transmute("Medición" = titulo_y,
                                "E" = estimate1, 
@@ -55,13 +120,26 @@ resultados_pcorr %>% transmute("Medición" = titulo_y,
 ```
 
 ```{r graficas}
+
+# Itera sobre un vector del 1 a la cantidad de elementos de la lista de tibbles (6, una por cada variable), el cual servirá como indice para obtener la tibble correspondiente de la lista file_list y asignarlo ese tibble a la variable z. 
+
+# Crea un ggplot de cada tibble cuyo eje x es el grupo (la columna 1) y el eje y es el valor de la medida conductal (columna 2), y con colores de acuerdo al grupo. Haz un boxplot relativamente delgado, sobre este pon los puntos individuales de los puntos (con un jitter que aleatoriza su posición horizontal en el eje x, de tal forma que no se traslapen un punto con otro si tienen valores similares).
+
+# Agrega un título en el eje y que corresponda al nombre bonito del vector titulo_y, usando el indice "i" sobre el que estamos iterando (1:length(file_list) es un vector númerico que sirve de indice, y es el input para la función cuyo argumento es "i").
+
+# Cambia el tema del plot a clásico, para que tenga un background puramente blanco. 
+
+# Modifica el tema para que los números del eje y esten a un ángulo de 90 grados, no haya el título x de "Grupo" y no haya una leyenda que indique a que color corresponde cada grupo. 
+
+# Asigna los ggplots creados a una lista
+
 lista_plots <- lapply(1:length(file_list) %>% set_names(names(file_list)), function(i){
   z <- file_list[[i]]
   ggplot(z, aes_string(y = colnames(z)[2], x = colnames(z)[1], color = colnames(z)[1])) +
     # geom_violin() +
     geom_boxplot(width = .25) +
     geom_jitter(width = .05) +
-    geom_signif() +
+    # geom_signif() +
     ylab(titulo_y[i]) +
     theme_classic() +
     theme(axis.text.y = element_text(angle = 90, hjust = .5),
@@ -69,7 +147,9 @@ lista_plots <- lapply(1:length(file_list) %>% set_names(names(file_list)), funct
           legend.position = "none")
   }
 ) 
-  
+
+# Aunque pudimos haber ingresado la lista de ggplots a cowplot::plot_grid para hacer un plot combindo de todos los ggplots individuales, ponemos cada elemento de la lista (cada ggplot) en el orden deseado, en lugar de su orden en la lista. Hacemos este plot combinado con 3 columnas y 2 filas. 
+
 plot_grid(lista_plots$latencia_eyaculacion.txt, 
           lista_plots$latencia_intromision.txt, 
           lista_plots$latencia_monta.txt, 
