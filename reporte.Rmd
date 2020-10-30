@@ -3,7 +3,18 @@ title: "Practica Conducta Sexual"
 author: "Diego Ramírez, Alejandra López, Deyanira Munguía, Rafael Sandoval, Diego Angeles"
 date: "`r Sys.Date()`"
 output: pdf_document
+bibliography: ref.bibtex
 ---
+
+# Introducción
+
+En varias especies de mamíferos el reflejo de lordosis es indicativo de la receptividad sexual en hembras. A partir de estudios realizados a lo largo del siglo pasado, se conoce que la probabilidad de ocurrencia de dicho reflejo es directamente proporcional con las dosis de las hormonas esteroideas, estradiol y progesterona, por lo que se señala un efecto sinérgico entre ambas [@whalen1974estrogen]. Ante el contacto con un macho, ambas hormonas ováricas actuaran en el hipotálamo, particularmente en el núcleo ventromedial de la hembra receptiva [@griffin2011ovarian], y como resultado arqueará la parte inferior de la columna propulsando su parte trasera hacia atrás de tal forma que expone sus genitales. En respuesta a los avances sexuales del macho, es la hembra la que modula la iniciación y temporalidad de la interacción sexual [@pfaff1994cellular]. 
+
+El presente experimento tiene como propósito replicar los efectos que tienen la administración de estradiol y su sinergia con la progesterona sobre la conducta sexual de la rata hembra.   
+
+# Método
+
+# Resultados
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, message = F)
@@ -159,3 +170,7 @@ plot_grid(lista_plots$latencia_eyaculacion.txt,
           ncol = 3, nrow = 2)
 
 ```
+
+# Conclusión
+
+# Referencias
