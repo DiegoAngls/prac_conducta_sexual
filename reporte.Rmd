@@ -8,27 +8,47 @@ bibliography: ref.bibtex
 
 # Introducción
 
-En varias especies de mamíferos el reflejo de lordosis es indicativo de la receptividad sexual en hembras. A partir de estudios realizados a lo largo del siglo pasado, se conoce que la probabilidad de ocurrencia de dicho reflejo es directamente proporcional con las dosis de las hormonas esteroideas, estradiol y progesterona, por lo que se señala un efecto sinérgico entre ambas [@whalen1974estrogen]. Ante el contacto con un macho, ambas hormonas ováricas actuaran en el hipotálamo, particularmente en el núcleo ventromedial de la hembra receptiva [@griffin2011ovarian], y como resultado arqueará la parte inferior de la columna propulsando su parte trasera hacia atrás de tal forma que expone sus genitales. En respuesta a los avances sexuales del macho, es la hembra la que modula la iniciación y temporalidad de la interacción sexual [@pfaff1994cellular]. 
+En varias especies de mamíferos, el reflejo de lordosis es indicativo de la receptividad sexual de las hembras. A partir de estudios realizados a lo largo del siglo pasado, se conoce que la ocurrencia de dicho reflejo es directamente proporcional a las dosis de estradiol y progesterona actuando en conjunto [@whalen1974estrogen]. Ante el contacto con un macho, ambas hormonas ováricas actúan en el núcleo ventromedial del hipotálamo [@griffin2011ovarian], induciendo que la hembra receptiva arquee la parte inferior de la columna vertebral y exponga los genitales por el movimiento pélvico hacia atrás; esto en función de la sinergia de estradiol y progesterona. En este sentido, la hembra modula la iniciación y temporalidad de la interacción sexual en respuesta a los avances del macho [@pfaff1994cellular].
 
-El presente experimento tiene como propósito replicar los efectos que tienen la administración de estradiol y su sinergia con la progesterona sobre la conducta sexual de la rata hembra.   
+El presente experimento tiene como propósito replicar los efectos que tienen la administración de estradiol y su sinergia con la progesterona sobre la conducta sexual de la rata hembra.
+
 
 # Método
+
+Para determinar el efecto del estradiol y la sinergia con progesterona sobre la conducta sexual, se utilizaron 20 ratas hembras ovariectomizadas con un peso entre 200-250 gramos y se dividieron en dos grupos: grupo estradiol (E, n=10) y grupo estradiol + progesterona (E+P, n=10).  El grupo E recibió una dosis de estradiol 25µg, mientras que el grupo E+P recibió estradiol 25µg / progesterona 1 mg / 0.05ml, ambos por vía subcutánea y utilizando aceite comestible como vehículo. 
+
+Posteriormente, cada rata hembra fue colocada con un macho de entre 300-350 gramos (machos n=10). Mientras se encontraban en parejas, se observó la receptividad manifestada por la hembra y se cuantificó el número de lordosis.  Se calculó el coeficiente de lordosis, el cual se determinó dividiendo el número total de respuestas de lordosis observadas entre el número total de montas e intromisiones multiplicado por 100. 
+
+La monta es definida como una conducta estereotipada que consiste en realizar una secuencia de movimientos de empuje pélvico, con o sin penetración vaginal. El macho suele posarse sobre sus patas traseras, mientras que la hembra realiza una lordosis que facilita el alineamiento genital entre ambos, mientras que el macho hace movimientos pélvicos rápidos con empuje antero-posterior durante aproximadamente 300ms. Inmediatamente después el macho se desmonta lentamente y entre cada monta hay una pausa de 20-80 segundos.Se cuantificaron las montas y sus latencias (s).
+
+La intromisión consiste en la inserción del pene en la vagina. Cuando se observa, comienza con una monta, pero repentinamente el macho realiza un empuje pélvico profundo insertando el pene en la vagina durante un período de 200-300 ms de contacto genital. Inmediatamente después el macho desmonta y se acicala lamiéndose los genitales. Se cuantificaron las intromisiones y sus latencias (s).
+
+La eyaculación consiste en la expulsión de líquido seminal durante la penetración. Cuando se observa, comienza con una intromisión y se caracteriza por un empuje y penetración larga (750-2000 ms) acompañado de contracciones rítmicas del abdomen posterior y un levantamiento y separación lenta de las patas delanteras del macho. Después, el macho desmonta mucho más lentamente que como lo hace en una intromisión normal, se acicala lamiéndose los genitales y permanece inactivo por varios minutos. Durante la eyaculación hay contracciones rítmicas de los músculos bulboesponjosos e isquiocavernosos en la base del pene, del esfínter anal y de otros músculos; suele ocurrir después de 7-10 intromisiones con distancias  de 1-2 minutos. Se cuantificaron las latencias de eyaculación (s).
+
+Para comparar si ambos grupos son distintos, se utilizó una prueba T de student de Welch, con excepción de cuando se viola la suposición de normalidad de los residuos de estos modelos (probado mediante la prueba de Shapiro-Wilk), en cuyos casos se utilizó una U de Mann-Whitney. Todos los análisis fueron realizados con R versión 3.6.3.  
+
 
 # Resultados
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, message = F)
+knitr::opts_chunk$set(echo = FALSE, message = F, warning = F)
 
-list.of.packages <- c("tidyverse", "here", "broom", "cowplot", "ggsignif", "knitr")
+list.of.packages <- c("tidyverse", "here", "broom", "cowplot", "ggsignif", "knitr", "pacman", "car", "psych", "GGally")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
 
+# p_load(list.of.packages)
 library(tidyverse)
 library(here)
 library(broom)
 library(cowplot)
 library(ggsignif)
 library(knitr)
+
+
+library(car)
+library(psych)
+library(GGally)
 
 
 # Para que el output sea pdf necesitas latex instalado. Si no lo tienes, instala el paquete tinytex con install.packages("tinytex") cargalo con library(tinytex) y luego utiliza la función tinytex::install_tinytex()
@@ -59,78 +79,71 @@ file_list <- lapply(files %>% set_names(files),
 
 ```
 
-```{r, eval= F}
-# Este código es innecesario. Fue usado para crear la base de datos "limpia" que contiene una columna (todas unidas en una sola base de datos rectangular, en lugar de estar de forma separada como los archivos originales) por cada variable variable conductual y una columna de grupo.
+
+```{r}
+resultados <- lapply(file_list, 
+       function(x){
+         lm_model <- x %>% 
+           with(., lm(formula = .[,2][[1]] ~ 1 + .[,1][[1]]))
+           
+         resid_norm <- lm_model %>% 
+           resid() %>% 
+           shapiro.test() %>% 
+           tidy()
+       
+         colnames(x) <- c("Grupo", "Variable")
+         descriptivos <- x %>% 
+           group_by(Grupo) %>% 
+           summarise(mean = mean(Variable),
+                    sd = sd(Variable),
+                    median = median(Variable)
+          ) %>% 
+           pivot_wider(values_from = c(mean, sd, median), names_from = Grupo) 
+       
+         if(resid_norm$p.value > .10){
+          lm_model <- x %>% 
+             with(., t.test(.[,2][[1]] ~ .[,1][[1]] )) %>% 
+             tidy() %>% 
+             transmute(statistic, p.value, method = "Welch T test", W = resid_norm$statistic, p_shapiro = resid_norm$p.value)
+         } 
+         else{
+          lm_model <- x %>% 
+             with(., wilcox.test(.[,2][[1]] ~ .[,1][[1]], exact = FALSE)) %>% 
+             tidy() %>% 
+             transmute(statistic, p.value, method = "U Mann-Whitney", W = resid_norm$statistic, p_shapiro = resid_norm$p.value)
+         }
+         bind_cols(lm_model, descriptivos)
+       }
+) %>% 
+  bind_rows(.id = "medida") 
+
+resultados[-1, "p.value"] <- resultados[-1,] %>%
+  transmute(p.value = p.adjust(p.value, method = "bonferroni"))
+
+resultados %>% 
+  transmute(Variable = c("Coef. Lordosis", "Lat. Eyaculación", "Lat. Intromisión", "Lat. Monta", "Num. Intromisiones", "Num. Montas"),
+            'E' = paste(round(mean_E), "±", round(sd_E)), 'E+P' = paste(round(`mean_E+P`), "±", round(`sd_E+P`)), 
+            # 'DE (E)' = round(sd_E), 'DE (E+P)' = round(`sd_E+P`),
+            # 'Mediana (E)' = round(median_E),  'Mediana (E+P)' = round(`median_E+P`), 
+            'Estadístico' = signif(statistic,2), 
+            'p' = ifelse(p.value >= .05, p.value, ifelse(p.value > .01, "*", ifelse(p.value > .001, "**", "***"))),  
+            'Método' = method,
+            'Shapiro' = ifelse(p_shapiro > .10, "NS", "*")
+  ) %>% 
+  kable()
 
 
-all_file_df <- lapply(file_list, function(x) x[,2]) %>% 
-  bind_cols %>%
-  add_column(file_list[[1]][,1])
-                            
-write_csv(all_file_df, path = here("data", "data_long_format.csv"), col_names = T)
 
 
-# Este código también es innecesario. Crea archivos .csv similares a los archivos .txt, pero con las columnas separadas por comas (comma separated values = csv)
-
-lapply(names(file_list), function(x) write_csv(file_list[[x]], 
-                                               path = here("data", 
-                                                           paste0(
-                                                             str_replace(x, ".txt", ""), 
-                                                             ".csv")
-                                                           ), 
-                                               col_names = T))
-
-# Todo este código no se corre al hacer knit, ya que está la opción de code chunk eval = F (evaluar igual a falso).
 ```
 
 
-```{r analisis}
-# Itera sobre cada tibble (data frame, base de datos rectangular) de la lista, haciendo una t de student con la columna de valores conductuales (la columna 2) en función del factor de grupo (la columna 1).
 
-# Limpia el output de la estadística inferencia con broom::tidy.
 
-# Acaba la iteración de la función de lapply, todos los outputs son tibbles de una sola fila, con la misma cantidad de columnas, cada una como un elemento separado de la lista. Junta estas filas con la función bind_rows, agrega una nueva columna llamada medida, que contiene los nombres de los elementos de la lista, que son los nombres de los archivos, dandonos una columna que nos diga a que variable le pertenece los resultados de la t de student de grupos independientes.
-
-resultados <- lapply(file_list, 
-       function(x) t.test(x[,2][[1]] ~ x[,1][[1]]) %>% 
-         tidy()) %>% 
-      bind_rows(.id = "medida")
-
-# Para todas las filas menos la primera (que sé que contiene los datos de las hembras de coeficientes de lordosis por ver el output del código previo), agrega una columna (con la función mutate) de valores p con corrección de Bonferroni (Ingresando un vector de valores p, la columna de p.values brutos obtenidos de la t de student, a la función p.adjust. Asigna este vector a una columna llamada p.value_bonf).
-
-# La correción de Bonferroni consiste en multiplicar los valores p originales por el número de comparaciones hechas. Aquí son sólo las 5 comparaciones hechas en los machos, ya que no son comparaciones independientes por ser variables de los mismos grupos de machos. La comnparación de coeficiente de lordosis sí es independiente a las comparaciones que se hicieron de los machos.
-
-# Los resultados de los machos y su nueva columna de valores p corregidos se asignan a una nueva variable. La variable con los resultados de las hembras queda sin modificaciones.
-
-resultados_mach_pcorr <- resultados[-1,] %>% 
-  mutate(p.value_bonf = p.adjust(p.value, method = "bonferroni"))
-
-# Copia la variable de resultados sin correción a otra
-resultados_pcorr <- resultados
-
-# Asgiana a la columna de valores p, menos a la primera fila que corresponde a la variable de las hembras, los resultados de p corregida de los machos
-resultados_pcorr$p.value[-1] <- resultados_mach_pcorr$p.value_bonf
-
-# Un vector de los nombres estéticos (en lugar de los nombres de los archivos originales en minusculas, sin espacios, etc), cuyo ordeb es el mismo   que los de la lista de datos en bruto y de el tibble con los resultados de la t de student.
+```{r graficas}
 
 titulo_y <- c("Coeficiente de Lordosis", "Latencia de Eyaculación", "Latencia de Intromisión",
               "Latencia de Monta", "Número de Intromisiones", "Número de Montas")
-
-# Selecciona las columnas y modifica sus valores al mismo con la función transmute() del tibble con los resultados de la t de student de las hembras y machos (estos últimos con sus valores p corregidos). La variable E es el promedio (estimate1) de la variable conductual para el grupo E, meintras que la E+P lo es para ese grupo. La variable de Puntaje T es el t score con 3 cifras significativas, al igual que lo es para la variable p. 
-
-# Manda esa tibble resultante del transmute a la función kable(), para crear una table bonita.
-
-resultados_pcorr %>% transmute("Medición" = titulo_y,
-                               "E" = estimate1, 
-                               "E+P" = estimate2,
-                               "Puntaje T" = signif(statistic, digits = 3),
-                               "p" = signif(p.value, digits = 3)) %>% 
-  kable()
-                               
-
-```
-
-```{r graficas}
 
 # Itera sobre un vector del 1 a la cantidad de elementos de la lista de tibbles (6, una por cada variable), el cual servirá como indice para obtener la tibble correspondiente de la lista file_list y asignarlo ese tibble a la variable z. 
 
@@ -172,5 +185,7 @@ plot_grid(lista_plots$latencia_eyaculacion.txt,
 ```
 
 # Conclusión
+
+Nuestros resultados sugieren que el reflejo de lordosis en la rata hembra, modula la iniciación y temporalidad de la interacción sexual, esta se presenta primordialmente ante la administración de estradiol + progesterona. Se confirma la sinergia de estas hormonas sobre el núcleo ventromedial del hipotálamo. Consecuentemente, los patrones conductuales del macho: monta, intromisión y eyaculación, también se presentan mayormente ante las ratas hembras que fueron administradas con estradiol + progesterona. 
 
 # Referencias
