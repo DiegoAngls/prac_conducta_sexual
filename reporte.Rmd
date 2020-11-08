@@ -128,11 +128,16 @@ resultados %>%
             'Estadístico' = signif(statistic,2), 
             'p' = ifelse(p.value >= .05, p.value, ifelse(p.value > .01, "*", ifelse(p.value > .001, "**", "***"))),  
             'Método' = method,
-            'Shapiro' = ifelse(p_shapiro > .10, "NS", "*")
+            'Shapiro-Wilk ' = ifelse(p_shapiro > .10, "NS", "*")
   ) %>% 
   kable()
 
 
+
+```
+Table 1. Resultados de la prueba de normalidad y el estadístico a utilizar. NS: No significativo, P< 0.05, ** P< 0.01, *** P< 0.001. 
+
+En la figura 1 se observan las variables asociadas con conducta sexual, se muestra un incremento  estadísticamente  significativo para las diferentes latencias  que analizamos, eyaculación, intromisión y latencia de monta en el grupo de E en comparascón con el grupo de E+P. Por otra parte, se encontró un  incremento  significativo en el coeficiente de lordosis, en el número de intromisiones y de montas, para el grupo de estradiol + progesterona versus al grupo que solo recibió la dosis de  estradiol. 
 
 
 ```
